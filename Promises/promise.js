@@ -147,8 +147,35 @@ tasks.reduce((task, nextTask) => {
 // Implement:
 
 function promisePool(tasks, limit) {
-  // your code
+    return new Promise(resolve => {
+        let index = 0;
+        let completed = 0;
+
+        function run() {
+            if (index >= tasks.length) return;
+
+            const current = index++;
+
+            tasks[current]().then(() => {
+                completed++;
+
+                if (completed === tasks.length) {
+                    resolve();
+                } else {
+                    run(); // start next task
+                }
+            });
+
+        }
+
+        // Start initial workers
+        for (let i = 0; i < limit; i++) {
+            run();
+        }
+    });
 }
+
+await promisePool(tasks, 2);
 
 // 7. Implement Retry Logic
 
