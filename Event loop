@@ -1,1 +1,106 @@
+Event loop:
+Since JavaScript is single-threaded, it uses the event loop to manage the execution of multiple tasks without blocking the main thread. The event loop is a mechanism that enables Javascript to handle asynchronous operations. It continously monitors the call stack and the callback queue. When the call stack is empty, the event loop takes the first event from the event queue and pushes it onto the call stack for execution.
 
+Task Queues
+
+There are two major queues:
+
+🟦 1. Macrotask Queue (Callback Queue)
+Contains:
+1. setTimeout
+2. setInterval
+3. DOM events
+4. setImmediate (Node)
+5. I/O callbacks
+
+🟨 2. Microtask Queue (Higher Priority)
+Contains:
+1. Promise.then
+2. Promise.catch
+3. Promise.finally
+4. queueMicrotask
+5. MutationObserver
+6. process.nextTick (Node – even higher priority)
+
+Note** ⚡ Microtasks ALWAYS run before macrotasks.
+
+Example: 
+console.log("Start");
+
+setTimeout(() => {
+  console.log("Timeout");
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log("Promise");
+});
+
+console.log("End");
+
+Start
+End
+Promise
+Timeout
+Phases of the Event Loop
+The event loop operates in multiple phases.
+
+1. Timers Phase: 
+The Timers phase is the first stage in the Node.js event loop cycle, responsible for executing callback functions scheduled by setTimeout() and setInterval(). It defines the minimum time that must elapse before a callback is executed, but does not guarantee it will run exactly at that moment.
+
+Example:
+setTimeout(() => {
+  console.log("Timer executed");
+}, 100);
+
+2. I/O Callbacks Phase: I/O Callbacks phase is the second stage of the Node.js event loop, responsible for executing I/O callbacks that were deferred to the next loop iteration, particularly system-level operations such as TCP errors and certain low-level network callbacks.
+
+Handles I/O operations like file reading, network requests, etc.
+
+3. Prepare Phase: It is Internal phase used by Node.js. It is not accessible directly from user code.
+
+4. Poll Phase (core Phase): The Poll phase is the central stage of the Node.js event loop, responsible for retrieving new I/O events and executing I/O-related callbacks such as file system operations, network requests, and database interactions. It also determines whether the event loop should block and wait for new events.
+const fs = require('fs');
+fs.readFile('example.txt', () => {
+  console.log("File read completed");
+});
+
+5. Check Phase: The Check phase is the stage of the Node.js event loop responsible for executing callbacks scheduled by setImmediate(). It runs immediately after the Poll phase completes.
+setImmediate(() => {
+  console.log("Immediate executed");
+});
+
+Close Callbacks Phase: Executes close event callbacks, e.g., socket.on('close').
+const net = require('net');
+
+const socket = net.connect(3000);
+
+socket.on('close', () => {
+  console.log("Connection closed");
+});
+
+Microtasks Execution: After each phase, the event loop processes the microtask queue before moving to the next phase.
+
+------------
+Special Priority Queues (Run Between Phases)
+
+These are not official phases but run between every phase transition.
+
+🟡 process.nextTick() Queue: The process.nextTick() queue is a high-priority queue that executes callbacks immediately after the current operation completes, before the event loop continues to the next phase.
+
+Example:
+process.nextTick(() => {
+  console.log("Next tick executed");
+});
+
+🔵 Microtask Queue (Promises): The Microtask Queue is a high-priority queue that executes Promise-related callbacks after the current phase completes and before moving to the next event loop phase.
+
+Executes callbacks scheduled by:
+Promise.then()
+Promise.catch()
+Promise.finally()
+queueMicrotask()
+
+Example:
+Promise.resolve().then(() => {
+  console.log("Promise resolved");
+});
