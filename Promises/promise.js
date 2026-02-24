@@ -121,7 +121,23 @@ const tasks = [
 // Task 1
 // Task 2
 // Task 3
+const tasks = [
+  () => new Promise(r => setTimeout(() => r("Task 1"), 1000)),
+  () => new Promise(r => setTimeout(() => r("Task 2"), 100)),
+  () => Promise.resolve("Task 3"),
+];
 
+// using for...of loop
+for (const task of tasks) {
+    const value = await task();
+    console.log(value)
+}
+
+//using Promise
+tasks.reduce((task, nextTask) => {
+    return task.then(() => nextTask())
+    .then(value => console.log(value))
+}, Promise.resolve())
 
 // 6. Limit Concurrent Promises (Very Common 🔥)
 
