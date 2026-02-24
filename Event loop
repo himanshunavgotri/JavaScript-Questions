@@ -104,3 +104,245 @@ Example:
 Promise.resolve().then(() => {
   console.log("Promise resolved");
 });
+
+=====================================================
+
+Common Issues Related to the Event Loop
+1. Blocking the Main Thread
+Heavy computations block the event loop, making the app unresponsive.
+
+while(true)
+{
+    console.log('Blocking...')
+}
+An infinite while(true) loop continuously runs, blocking the event loop and freezing the browser by preventing any other task from executing.
+
+2. Delayed Execution of setTimeout
+setTimeout doesn’t always run exactly after the specified time.
+
+console.log("Start");
+setTimeout(() => console.log("Inside setTimeout"), 1000);
+for (let i = 0; i < 1e9; i++) {} // Long loop
+console.log("End");
+The blocking loop delays setTimeout execution because the Call Stack is busy so, this code will also lead to Time Limit Exceed Error or will freeze the Browser.
+
+3. Priority of Microtasks Over Callbacks
+Microtasks run before setTimeout, even if set with 0ms delay.
+
+setTimeout(() => console.log("setTimeout"), 0);
+Promise.resolve().then(() => console.log("Promise"));
+console.log("End");
+Explain
+
+The event loop first check's for function in the microtask queue and then in the call back queue always in JavaScript microtask queue is given more priority than the call back queue that's why the functions present in the microtask queue are executed first.
+
+4. Callback Hell
+Too many nested callbacks make code unreadable.
+
+
+setTimeout(() => {
+    console.log("Step 1");
+    setTimeout(() => {
+        console.log("Step 2");
+        setTimeout(() => {
+            console.log("Step 3");
+        }, 1000);
+    }, 1000);
+}, 1000);
+This creates Callback Hell, making it hard to read and maintain. Use Promises or async/await instead.
+
+=========
+Example:
+1.
+process.nextTick(function tick() {
+  process.nextTick(tick);
+});
+
+Promise.resolve().then(() => {
+  console.log("Promise");
+});
+
+setTimeout(() => {
+  console.log("Timer");
+}, 0);
+❓ What happens?
+
+✅ Nothing prints.
+
+💡 Why?
+
+process.nextTick() queue runs before microtasks
+
+It drains completely
+
+Since each tick schedules another → infinite loop
+
+Promise and Timer never execute
+
+🔥 This is event loop starvation.
+
+
+
+====
+
+2️ Promise Starvation of Timers
+function loop() {
+  Promise.resolve().then(loop);
+}
+loop();
+
+setTimeout(() => console.log("Timer"), 0);
+❓ What happens?
+
+✅ Timer never executes.
+
+💡 Why?
+
+Microtask queue drains completely
+
+Each microtask schedules another microtask
+
+Event loop never reaches Timers phase
+
+⚠ Promises can also starve macrotasks.
+
+
+3️ setImmediate Inside Poll vs Outside
+const fs = require('fs');
+
+setImmediate(() => console.log("Immediate OUT"));
+
+fs.readFile(__filename, () => {
+  setImmediate(() => console.log("Immediate IN"));
+});
+Possible Output:
+Immediate OUT
+Immediate IN
+Why?
+
+First iteration → Immediate OUT runs in Check phase
+
+File I/O completes in Poll phase
+
+Schedules Immediate IN
+
+Next Check phase → runs
+
+4️ Timer Created During Poll
+const fs = require('fs');
+
+fs.readFile(__filename, () => {
+  setTimeout(() => console.log("Timer inside I/O"), 0);
+});
+
+setImmediate(() => console.log("Immediate"));
+Likely Output:
+Immediate
+Timer inside I/O
+Why?
+
+Poll executes I/O callback
+
+setTimeout goes to Timers
+
+Event loop goes to Check phase → runs Immediate
+
+Next cycle → Timers phase → runs timer
+
+5️ Microtasks Inside setImmediate
+setImmediate(() => {
+  console.log("Immediate");
+  Promise.resolve().then(() => console.log("Promise inside Immediate"));
+});
+
+setTimeout(() => console.log("Timer"), 0);
+Typical Output:
+Immediate
+Promise inside Immediate
+Timer
+Why?
+
+Check phase → runs Immediate
+
+After callback → microtasks drain
+
+Then next phase → Timers
+
+6️ process.nextTick Inside Promise
+Promise.resolve().then(() => {
+  console.log("Promise");
+  process.nextTick(() => console.log("NextTick inside Promise"));
+});
+Output:
+Promise
+NextTick inside Promise
+Why?
+
+Promise runs (microtask phase)
+
+Inside → schedules nextTick
+
+nextTick runs immediately after current microtask finishes
+
+⚠ nextTick always jumps ahead.
+
+7️ Nested Timers with Heavy CPU Block
+setTimeout(() => console.log("Timer 1"), 0);
+
+for (let i = 0; i < 1e9; i++) {}
+
+setTimeout(() => console.log("Timer 2"), 0);
+Output:
+Timer 1
+Timer 2
+Why?
+
+Both timers expire during blocking
+
+Timers phase runs FIFO
+
+Delay doesn’t matter — only order of registration
+
+🔥 Timers are minimum delay, not precise time.
+
+
+8️ Multiple setImmediate Scheduled During Poll
+const fs = require('fs');
+
+fs.readFile(__filename, () => {
+  setImmediate(() => console.log("Immediate 1"));
+  setImmediate(() => console.log("Immediate 2"));
+});
+Output:
+Immediate 1
+Immediate 2
+
+Why?
+
+Scheduled in same Poll callback
+
+Both enter Check queue
+
+FIFO execution
+============================
+
+
+
+
+
+
+
+
+setImmediate(() => {
+  console.log("Immediate");
+});
+
+Promise.resolve().then(() => {
+  console.log("Promise");
+  process.nextTick(() => console.log("NextTick"));
+});
+
+O/p:
+Promise
+NextTick
+Immediate
